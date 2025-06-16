@@ -15,11 +15,12 @@ from dotenv import load_dotenv
 # Charger les variables d'environnement
 load_dotenv()
 
-print("🧠 TEST SERVEUR MCP avec CLAUDE API")
-print("=" * 50)
+if __name__ == "__main__":
+    print("🧠 TEST SERVEUR MCP avec CLAUDE API")
+    print("=" * 50)
 
 # Vérifier la configuration
-if not os.getenv('ANTHROPIC_API_KEY'):
+if __name__ == "__main__" and not os.getenv('ANTHROPIC_API_KEY'):
     print("❌ ANTHROPIC_API_KEY non trouvée dans .env")
     print("💡 Ajoutez votre clé Claude dans le fichier .env :")
     print("   ANTHROPIC_API_KEY=sk-ant-api03-...")
@@ -36,26 +37,26 @@ except ImportError:
 
 class MCPWeatherServer:
     """Gestionnaire du serveur MCP Weather"""
-    
+
     def __init__(self, workspace_path: str = None):
         self.workspace_path = workspace_path or os.getcwd()
         self.process = None
         self.message_id = 0
         self.initialized = False
-        
+
     def get_next_id(self):
         self.message_id += 1
         return self.message_id
-    
+
     async def start(self) -> bool:
         """Démarre le serveur MCP"""
         try:
             print("🚀 Démarrage du serveur MCP...")
-            
+
             env = os.environ.copy()
             env["PYTHONPATH"] = self.workspace_path
             env["PYTHONUNBUFFERED"] = "1"
-            
+
             self.process = await asyncio.create_subprocess_exec(
                 "python", "-m", "src.main",
                 cwd=self.workspace_path,
@@ -64,58 +65,58 @@ class MCPWeatherServer:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
-            
+
             print(f"   ✅ Serveur démarré (PID: {self.process.pid})")
             return True
-            
+
         except Exception as e:
             print(f"   ❌ Erreur: {e}")
             return False
-    
+
     async def send_message(self, message: Dict[str, Any]) -> Dict[str, Any]:
         """Envoie un message au serveur MCP"""
         if not self.process:
             return {"error": "Server not started"}
-        
+
         try:
             message_json = json.dumps(message) + "\n"
-            
+
             self.process.stdin.write(message_json.encode())
             await self.process.stdin.drain()
-            
+
             response_line = await asyncio.wait_for(
-                self.process.stdout.readline(), 
+                self.process.stdout.readline(),
                 timeout=10.0
             )
-            
+
             if response_line:
                 return json.loads(response_line.decode().strip())
             else:
                 return {"error": "No response"}
-                
+
         except asyncio.TimeoutError:
             return {"error": "Timeout"}
         except Exception as e:
             return {"error": str(e)}
-    
+
     async def send_notification(self, method: str, params: Dict[str, Any] = None):
         """Envoie une notification"""
         notification = {"jsonrpc": "2.0", "method": method}
         if params is not None:
             notification["params"] = params
-        
+
         try:
             notification_json = json.dumps(notification) + "\n"
             self.process.stdin.write(notification_json.encode())
             await self.process.stdin.drain()
         except Exception as e:
             print(f"Erreur notification: {e}")
-    
+
     async def initialize(self) -> bool:
         """Initialise la connexion MCP"""
         try:
             print("🤝 Initialisation MCP...")
-            
+
             # Initialize
             init_message = {
                 "jsonrpc": "2.0",
@@ -127,29 +128,29 @@ class MCPWeatherServer:
                     "clientInfo": {"name": "claude-api-test", "version": "1.0.0"}
                 }
             }
-            
+
             init_response = await self.send_message(init_message)
             if "error" in init_response:
                 print(f"   ❌ Erreur: {init_response['error']}")
                 return False
-            
+
             # Initialized notification
             await self.send_notification("notifications/initialized")
             await asyncio.sleep(0.5)
-            
+
             self.initialized = True
             print("   ✅ MCP initialisé")
             return True
-            
+
         except Exception as e:
             print(f"   ❌ Erreur: {e}")
             return False
-    
+
     async def get_weather(self, city: str, unit: str = "celsius") -> Dict[str, Any]:
         """Appelle l'outil météo"""
         if not self.initialized:
             return {"success": False, "error": "Not initialized"}
-        
+
         try:
             call_message = {
                 "jsonrpc": "2.0",
@@ -160,9 +161,9 @@ class MCPWeatherServer:
                     "arguments": {"city": city, "unit": unit}
                 }
             }
-            
+
             response = await self.send_message(call_message)
-            
+
             # Extraire les données (format validé)
             if "result" in response:
                 result = response["result"]
@@ -171,12 +172,12 @@ class MCPWeatherServer:
                         text_content = result["content"][0].get("text", "")
                         if text_content:
                             return json.loads(text_content)
-            
+
             return {"success": False, "error": "Invalid response format"}
-            
+
         except Exception as e:
             return {"success": False, "error": str(e)}
-    
+
     async def stop(self):
         """Arrête le serveur"""
         if self.process:
@@ -192,31 +193,32 @@ class MCPWeatherServer:
 
 class ClaudeWeatherTester:
     """Testeur Claude avec serveur MCP"""
-    
+
     def __init__(self):
-        self.client = anthropic.Anthropic(api_key=os.getenv('ANTHROPIC_API_KEY'))
+        self.client = anthropic.Anthropic(
+            api_key=os.getenv('ANTHROPIC_API_KEY'))
         self.mcp_server = None
         print("✅ Client Claude initialisé")
-    
+
     async def setup_mcp_server(self):
         """Configure le serveur MCP"""
         self.mcp_server = MCPWeatherServer()
-        
+
         if not await self.mcp_server.start():
             raise Exception("Impossible de démarrer le serveur MCP")
-        
+
         await asyncio.sleep(1)
-        
+
         if not await self.mcp_server.initialize():
             raise Exception("Impossible d'initialiser MCP")
-        
+
         print("✅ Serveur MCP prêt pour Claude")
-    
+
     async def ask_claude_with_weather(self, user_question: str, cities: List[str]) -> str:
         """Pose une question à Claude avec données météo en temps réel"""
-        
+
         print(f"🌍 Récupération météo pour: {', '.join(cities)}")
-        
+
         # Récupérer les données météo via MCP
         weather_data = {}
         for city in cities:
@@ -228,9 +230,10 @@ class ClaudeWeatherTester:
                 condition = result["data"]["condition"]
                 print(f"   ✅ {city}: {temp}{unit}, {condition}")
             else:
-                weather_data[city] = {"error": result.get("error", "Unknown error")}
+                weather_data[city] = {
+                    "error": result.get("error", "Unknown error")}
                 print(f"   ❌ {city}: {result.get('error', 'Unknown')}")
-        
+
         # Construire le prompt pour Claude
         weather_context = "Données météo actuelles (via serveur MCP):\\n"
         for city, data in weather_data.items():
@@ -246,9 +249,9 @@ class ClaudeWeatherTester:
                     weather_context += f"\\n- Prévision: {forecast['day']} {forecast['high']}°-{forecast['low']}° {forecast['condition']}"
             else:
                 weather_context += f"\\n{city}: Erreur - {data['error']}"
-        
+
         print("🧠 Envoi à Claude...")
-        
+
         # Appeler Claude
         response = self.client.messages.create(
             model="claude-3-7-sonnet-20250219",
@@ -260,9 +263,9 @@ class ClaudeWeatherTester:
                 }
             ]
         )
-        
+
         return response.content[0].text
-    
+
     async def cleanup(self):
         """Nettoie les ressources"""
         if self.mcp_server:
@@ -271,13 +274,13 @@ class ClaudeWeatherTester:
 
 async def run_claude_tests():
     """Exécute les tests avec Claude"""
-    
+
     tester = ClaudeWeatherTester()
-    
+
     try:
         # Setup
         await tester.setup_mcp_server()
-        
+
         # Questions de test
         test_questions = [
             {
@@ -301,23 +304,23 @@ async def run_claude_tests():
                 "cities": ["Paris", "Rome", "Madrid", "Berlin"]
             }
         ]
-        
+
         print(f"\\n🎯 TESTS CLAUDE avec {len(test_questions)} scénarios")
         print("=" * 60)
-        
+
         # Tester chaque question
         for i, test in enumerate(test_questions, 1):
             print(f"\\n📝 Test {i}/{len(test_questions)}")
             print(f"❓ Question: {test['question']}")
             print("-" * 50)
-            
+
             start_time = time.time()
             response = await tester.ask_claude_with_weather(
-                test['question'], 
+                test['question'],
                 test['cities']
             )
             end_time = time.time()
-            
+
             print(f"\\n🧠 Réponse de Claude:")
             print(f"{'=' * 40}")
             # Formater la réponse sur plusieurs lignes si nécessaire
@@ -338,19 +341,19 @@ async def run_claude_tests():
                 else:
                     print(f"   {line}")
             print(f"{'=' * 40}")
-            
+
             print(f"\\n⏱️ Temps total: {end_time - start_time:.2f}s")
             print(f"📊 Longueur réponse: {len(response)} caractères")
-            
+
             # Pause entre les tests
             if i < len(test_questions):
                 print("\\n⏳ Pause 2s...")
                 await asyncio.sleep(2)
-        
+
         print(f"\\n🎉 TOUS LES TESTS CLAUDE TERMINÉS!")
         print(f"✅ {len(test_questions)} scénarios testés avec succès")
         print(f"🧠 Claude + MCP Server = Fonctionnel !")
-        
+
     except Exception as e:
         print(f"❌ Erreur: {e}")
         import traceback
@@ -361,8 +364,9 @@ async def run_claude_tests():
 
 if __name__ == "__main__":
     print(f"🔧 Workspace: {os.getcwd()}")
-    print(f"🔑 Claude API: {'✅ Configuré' if os.getenv('ANTHROPIC_API_KEY') else '❌ Manquant'}")
-    
+    print(
+        f"🔑 Claude API: {'✅ Configuré' if os.getenv('ANTHROPIC_API_KEY') else '❌ Manquant'}")
+
     try:
         asyncio.run(run_claude_tests())
     except KeyboardInterrupt:

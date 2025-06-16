@@ -226,6 +226,64 @@ python -m src.main
 python test/run_local.py
 ```
 
+### Method 3: Azure Cloud Deployment
+
+#### Déploiement automatique sur Azure Container Instances
+
+Le projet inclut des scripts PowerShell pour déployer automatiquement votre serveur MCP Weather sur Azure.
+
+##### Prérequis
+- Azure CLI installé
+- Docker installé
+- Compte Azure actif
+
+##### Configuration rapide
+```powershell
+# 1. Vérifier les prérequis
+.\azure-setup.ps1 -CheckOnly
+
+# 2. Installer les prérequis automatiquement (Windows)
+.\azure-setup.ps1 -InstallPrerequisites
+
+# 3. Se connecter à Azure
+az login
+```
+
+##### Déploiement
+```powershell
+# Déploiement simple (nom de registre requis - doit être unique)
+.\deploy-azure.ps1 -ContainerRegistryName "mcpweather1234"
+
+# Déploiement avec paramètres personnalisés
+.\deploy-azure.ps1 -ContainerRegistryName "monregistre" -ResourceGroupName "mon-rg" -Location "France Central"
+```
+
+##### Gestion post-déploiement
+```powershell
+# Voir l'état du conteneur
+.\azure-manage.ps1 -Action status
+
+# Voir les logs en temps réel
+.\azure-manage.ps1 -Action logs -Follow
+
+# Redémarrer le conteneur
+.\azure-manage.ps1 -Action restart
+
+# Arrêter/démarrer le conteneur
+.\azure-manage.ps1 -Action stop
+.\azure-manage.ps1 -Action start
+
+# Supprimer complètement le déploiement
+.\azure-manage.ps1 -Action delete
+```
+
+##### Avantages du déploiement Azure
+- ✅ **Haute disponibilité**: Redémarrage automatique
+- ✅ **Scalabilité**: Ajustement des ressources
+- ✅ **Sécurité**: Registre de conteneurs privé
+- ✅ **Monitoring**: Logs et métriques intégrés
+- ✅ **Coût optimisé**: Paiement à l'usage
+
 ## 🧪 Testing and Validation
 
 ### Complete Server Test
@@ -552,7 +610,7 @@ asyncio.run(test_custom())
 - [ ] **Database**: Persistent storage
 
 ### ☁️ Cloud Deployment
-- [ ] **Azure Container Instances**: Azure deployment
+- [x] **Azure Container Instances**: Azure deployment (scripts inclus)
 - [ ] **Azure Functions**: Serverless MCP
 
 ### 🔒 Security and Production
