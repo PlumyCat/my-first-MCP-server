@@ -1,0 +1,16 @@
+# Variables d'environnement pour les APIs IA
+# Copiez ce fichier vers .env et remplissez vos vraies clés
+
+# Claude API (Anthropic)
+CLAUDE_API_KEY=your_claude_api_key_here
+CLAUDE_MODEL=claude-3-sonnet-20240229
+
+# Azure OpenAI
+AZURE_OPENAI_API_KEY=your_azure_openai_api_key_here
+AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com/
+AZURE_OPENAI_API_VERSION=2024-02-15-preview
+AZURE_OPENAI_DEPLOYMENT_NAME=your_deployment_name_here
+
+# Configuration générale
+MCP_SERVER_TIMEOUT=30
+DEBUG_MODE=false 

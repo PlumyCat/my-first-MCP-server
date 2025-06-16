@@ -1,0 +1,45 @@
+
+services:
+  mcp-weather-server:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      network: host  # Utilise le réseau de l'hôte pour contourner les problèmes proxy
+    container_name: mcp-weather-server
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+      # Variables pour résoudre les problèmes de réseau
+      - HTTP_PROXY=${HTTP_PROXY:-}
+      - HTTPS_PROXY=${HTTPS_PROXY:-}
+      - NO_PROXY=${NO_PROXY:-}
+    volumes:
+      - ./src:/app/src  # Pour le développement
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    
+    # Réseau pour contourner les problèmes
+    network_mode: host
+    
+    # Commande de démarrage
+    command: ["python", "-m", "src.main"]
+
+  # Version alternative sans réseau spécial
+  mcp-weather-server-alt:
+    build: 
+      context: .
+      dockerfile: Dockerfile.local  # Utilise le Dockerfile alternatif
+    container_name: mcp-weather-server-alt
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+    volumes:
+      - ./src:/app/src
+    stdin_open: true
+    tty: true
+    ports:
+      - "8000:8000"
+    profiles:
+      - alternative
+    command: ["python", "-m", "src.main"]

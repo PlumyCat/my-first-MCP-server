@@ -1,0 +1,36 @@
+# Image de base alternative
+FROM mcr.microsoft.com/devcontainers/python:3.12
+
+# Ou utilisez une image locale si vous avez des problèmes de réseau
+# FROM python:3.11-alpine
+
+# Définition du répertoire de travail
+WORKDIR /app
+
+# Installation des dépendances système (minimal pour alpine)
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/* \
+    || apk add --no-cache gcc musl-dev
+
+# Mise à jour de pip
+RUN pip install --upgrade pip --no-cache-dir
+
+# Copie du fichier requirements
+COPY requirements.txt .
+
+# Installation des dépendances Python avec retry
+RUN pip install --no-cache-dir --retries 3 --timeout 60 -r requirements.txt
+
+# Copie du code source
+COPY src/ ./src/
+
+# Variables d'environnement
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Exposition du port
+EXPOSE 8000
+
+# Commande par défaut
+CMD ["python", "-m", "src.main"]

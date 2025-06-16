@@ -1,0 +1,27 @@
+{
+  "name": "Weather MCP Server",
+  "description": "Serveur MCP pour données météo factices",
+  "command": [
+    "python",
+    "-m",
+    "src.main"
+  ],
+  "cwd": "F:\\my_first_mcp",
+  "env": {
+    "PYTHONPATH": "F:\\my_first_mcp",
+    "PYTHONUNBUFFERED": "1"
+  },
+  "usage": {
+    "tools": [
+      {
+        "name": "get_weather",
+        "description": "Récupère les conditions météorologiques pour une ville",
+        "parameters": {
+          "city": "Nom de la ville (requis)",
+          "unit": "Unité de température: celsius ou fahrenheit (optionnel)"
+        },
+        "example": "get_weather(city='Paris', unit='celsius')"
+      }
+    ]
+  }
+}

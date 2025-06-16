@@ -1,0 +1,12 @@
+mcp>=1.0.0
+pydantic>=2.0.0
+asyncio-mqtt
+python-json-logger
+typing-extensions
+
+# Dépendances pour les tests avec modèles IA
+anthropic>=0.7.0
+openai>=1.0.0
+python-dotenv>=1.0.0
+jupyter>=1.0.0
+requests>=2.28.0
