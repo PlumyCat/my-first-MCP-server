@@ -1,371 +1,247 @@
 #!/usr/bin/env pwsh
-
-<#
-.SYNOPSIS
-    Script de sécurisation Azure AD pour le container MCP Weather existant
-.DESCRIPTION
-    Ce script met à jour un container Azure existant avec l'authentification Azure AD
-    sans nécessiter un redéploiement complet
-.PARAMETER ResourceGroupName
-    Nom du groupe de ressources Azure
-.PARAMETER ContainerInstanceName
-    Nom de l'instance de conteneur à sécuriser
-.PARAMETER ContainerRegistryName
-    Nom du registre de conteneurs Azure
-.PARAMETER TenantId
-    Azure AD Tenant ID
-.PARAMETER ClientId
-    Azure AD Client ID (Application ID)
-.PARAMETER ClientSecret
-    Azure AD Client Secret
-.EXAMPLE
-    .\azure-secure.ps1 -ContainerRegistryName "mcpweather2024" -TenantId "your-tenant-id" -ClientId "your-client-id" -ClientSecret "your-secret"
-#>
+# Script de sécurisation Azure AD pour MCP Weather Server
+# Ajoute l'authentification Azure AD au conteneur existant
 
 param(
-    [Parameter(Mandatory=$false)]
-    [string]$ResourceGroupName = "mcp-weather-rg",
-    
-    [Parameter(Mandatory=$false)]
-    [string]$ContainerInstanceName = "mcp-weather-server",
-    
-    [Parameter(Mandatory=$true)]
-    [string]$ContainerRegistryName,
-    
-    [Parameter(Mandatory=$true)]
-    [string]$TenantId,
-    
-    [Parameter(Mandatory=$true)]
-    [string]$ClientId,
-    
-    [Parameter(Mandatory=$true)]
-    [string]$ClientSecret,
-    
-    [Parameter(Mandatory=$false)]
-    [string]$ImageTag = "secure"
+    [string]$ResourceGroup = "mcp-weather-rg",
+    [string]$ContainerName = "mcp-weather-server",
+    [switch]$Force
 )
 
 # Configuration des couleurs pour les messages
-$ErrorActionPreference = "Stop"
-
-function Write-ColorOutput {
-    param(
-        [string]$Message,
-        [string]$Color = "White"
-    )
-    Write-Host $Message -ForegroundColor $Color
+$Colors = @{
+    Success = "Green"
+    Warning = "Yellow" 
+    Error = "Red"
+    Info = "Cyan"
+    Header = "Magenta"
 }
 
-function Write-Step {
-    param([string]$Message)
-    Write-ColorOutput "🔄 $Message" "Cyan"
+function Write-ColorMessage {
+    param([string]$Message, [string]$Color = "White")
+    Write-Host $Message -ForegroundColor $Colors[$Color]
 }
 
-function Write-Success {
-    param([string]$Message)
-    Write-ColorOutput "✅ $Message" "Green"
+function Write-Header {
+    param([string]$Title)
+    Write-Host ""
+    Write-ColorMessage "=" * 50 -Color "Header"
+    Write-ColorMessage $Title -Color "Header"
+    Write-ColorMessage "=" * 50 -Color "Header"
 }
 
-function Write-Error {
-    param([string]$Message)
-    Write-ColorOutput "❌ $Message" "Red"
-}
-
-function Write-Warning {
-    param([string]$Message)
-    Write-ColorOutput "⚠️  $Message" "Yellow"
-}
-
-function Write-Info {
-    param([string]$Message)
-    Write-ColorOutput "ℹ️  $Message" "Blue"
-}
-
-# En-tête
-Write-ColorOutput "🔐 Sécurisation Azure AD - MCP Weather Server" "Magenta"
-Write-ColorOutput "=============================================" "Magenta"
-
-# Vérification de la connexion Azure
-Write-Step "Vérification de la connexion Azure..."
-try {
-    $account = az account show --output json | ConvertFrom-Json
-    Write-Success "Connecté à Azure avec: $($account.user.name)"
-} catch {
-    Write-Error "Vous n'êtes pas connecté à Azure. Exécutez 'az login' pour vous connecter."
-    exit 1
-}
-
-# Variables dérivées
-$acrLoginServer = "$ContainerRegistryName.azurecr.io"
-$imageName = "$acrLoginServer/mcp-weather-server"
-$secureImageName = "$imageName`:$ImageTag"
-
-Write-ColorOutput "`n📋 Configuration de sécurisation:" "Yellow"
-Write-ColorOutput "  • Groupe de ressources: $ResourceGroupName" "White"
-Write-ColorOutput "  • Instance de conteneur: $ContainerInstanceName" "White"
-Write-ColorOutput "  • Registre: $ContainerRegistryName" "White"
-Write-ColorOutput "  • Image sécurisée: $secureImageName" "White"
-Write-ColorOutput "  • Azure AD Tenant: $TenantId" "White"
-Write-ColorOutput "  • Azure AD Client: $ClientId" "White"
-
-# Vérifier que le container existe
-Write-Step "Vérification de l'existence du container..."
-try {
-    $containerInfo = az container show --resource-group $ResourceGroupName --name $ContainerInstanceName --output json | ConvertFrom-Json
-    Write-Success "Container '$ContainerInstanceName' trouvé"
-    Write-Info "État actuel: $($containerInfo.instanceView.currentState.state)"
-} catch {
-    Write-Error "Container '$ContainerInstanceName' non trouvé dans le groupe '$ResourceGroupName'"
-    Write-Info "Assurez-vous que le container est déployé avant de le sécuriser"
-    exit 1
-}
-
-# Étape 1: Ajouter les variables Azure AD au fichier .env existant
-Write-Step "Ajout des variables Azure AD au fichier .env..."
-try {
-    # Vérifier si le fichier .env existe
+function Get-AzureADVariables {
+    Write-Header "VÉRIFICATION DES VARIABLES AZURE AD"
+    
+    # Lire les variables depuis le fichier .env
+    $envVars = @{}
     if (Test-Path ".env") {
-        Write-Info "Fichier .env existant détecté - ajout des variables Azure AD"
-        
-        # Lire le contenu existant
-        $existingContent = Get-Content ".env" -Raw
-        
-        # Supprimer les anciennes variables Azure AD si elles existent
-        $existingContent = $existingContent -replace "(?m)^AZURE_AD_.*$", ""
-        $existingContent = $existingContent -replace "(?m)^MCP_SECURE_MODE=.*$", ""
-        
-        # Nettoyer les lignes vides multiples
-        $existingContent = $existingContent -replace "(?m)^\s*$\n", ""
-        
-        # Ajouter les nouvelles variables Azure AD
-        $newContent = $existingContent.TrimEnd() + "`n`n# Configuration Azure AD pour l'authentification`n"
-        $newContent += "AZURE_AD_TENANT_ID=$TenantId`n"
-        $newContent += "AZURE_AD_CLIENT_ID=$ClientId`n"
-        $newContent += "AZURE_AD_CLIENT_SECRET=$ClientSecret`n"
-        $newContent += "MCP_SECURE_MODE=true`n"
-        
-        # Sauvegarder le fichier mis à jour
-        $newContent | Out-File -FilePath ".env" -Encoding UTF8 -NoNewline
-        Write-Success "Variables Azure AD ajoutées au fichier .env existant"
-        
-    } else {
-        Write-Warning "Fichier .env non trouvé - création d'un nouveau fichier"
-        
-        # Créer un nouveau fichier .env minimal
-        $envContent = @"
-# Configuration Azure AD pour l'authentification
-AZURE_AD_TENANT_ID=$TenantId
-AZURE_AD_CLIENT_ID=$ClientId
-AZURE_AD_CLIENT_SECRET=$ClientSecret
-
-# Mode sécurisé activé
-MCP_SECURE_MODE=true
-"@
-        $envContent | Out-File -FilePath ".env" -Encoding UTF8
-        Write-Success "Nouveau fichier .env créé avec les variables Azure AD"
+        $envContent = Get-Content ".env" | Where-Object { $_ -match "^[^#].*=" }
+        foreach ($line in $envContent) {
+            $parts = $line.Split('=', 2)
+            if ($parts.Length -eq 2) {
+                $key = $parts[0].Trim()
+                $value = $parts[1].Trim().Trim('"')
+                $envVars[$key] = $value
+            }
+        }
     }
-} catch {
-    Write-Error "Erreur lors de la mise à jour du fichier .env: $_"
-    exit 1
-}
-
-# Étape 2: Construire une nouvelle image avec les variables d'environnement
-Write-Step "Construction de l'image Docker sécurisée..."
-try {
-    # Créer un Dockerfile temporaire qui inclut les variables d'environnement (non sensibles seulement)
-    $secureDockerfile = @"
-# Image sécurisée basée sur l'image existante
-FROM $imageName`:latest
-
-# Ajout des variables d'environnement non sensibles
-ENV AZURE_AD_TENANT_ID=$TenantId
-ENV AZURE_AD_CLIENT_ID=$ClientId
-ENV MCP_SECURE_MODE=true
-
-# Note: AZURE_AD_CLIENT_SECRET sera passé au runtime pour la sécurité
-
-# Réexposer le port
-EXPOSE 8000
-
-# Commande par défaut (inchangée)
-CMD ["python", "-m", "src.main"]
-"@
-
-    $secureDockerfile | Out-File -FilePath "Dockerfile.secure" -Encoding UTF8
     
-    # Construire la nouvelle image
-    docker build -f Dockerfile.secure -t $secureImageName .
-    Write-Success "Image Docker sécurisée construite"
+    # Vérifier les variables Azure AD requises
+    $requiredVars = @("AZURE_AD_TENANT_ID", "AZURE_AD_CLIENT_ID", "AZURE_AD_CLIENT_SECRET")
+    $missingVars = @()
     
-    # Nettoyer le Dockerfile temporaire
-    Remove-Item "Dockerfile.secure" -Force
+    foreach ($var in $requiredVars) {
+        if (-not $envVars.ContainsKey($var) -or [string]::IsNullOrWhiteSpace($envVars[$var])) {
+            $missingVars += $var
+        } else {
+            Write-ColorMessage "✅ $var configuré" -Color "Success"
+        }
+    }
     
-} catch {
-    Write-Error "Erreur lors de la construction de l'image sécurisée: $_"
-    exit 1
-}
-
-# Étape 3: Se connecter au registre et pousser l'image
-Write-Step "Connexion au registre de conteneurs..."
-try {
-    az acr login --name $ContainerRegistryName
-    Write-Success "Connexion au registre réussie"
-} catch {
-    Write-Error "Erreur lors de la connexion au registre: $_"
-    exit 1
-}
-
-Write-Step "Push de l'image sécurisée vers Azure Container Registry..."
-try {
-    docker push $secureImageName
-    Write-Success "Image sécurisée poussée vers ACR"
-} catch {
-    Write-Error "Erreur lors du push: $_"
-    exit 1
-}
-
-# Étape 4: Obtenir les identifiants du registre
-Write-Step "Récupération des identifiants du registre..."
-try {
-    $acrCredentials = az acr credential show --name $ContainerRegistryName --output json | ConvertFrom-Json
-    $acrUsername = $acrCredentials.username
-    $acrPassword = $acrCredentials.passwords[0].value
-    Write-Success "Identifiants du registre récupérés"
-} catch {
-    Write-Error "Erreur lors de la récupération des identifiants: $_"
-    exit 1
-}
-
-# Étape 5: Supprimer l'ancien container
-Write-Step "Suppression de l'ancien container non sécurisé..."
-try {
-    az container delete --resource-group $ResourceGroupName --name $ContainerInstanceName --yes --output none
-    Write-Success "Ancien container supprimé"
+    if ($missingVars.Count -gt 0) {
+        Write-ColorMessage "❌ Variables Azure AD manquantes: $($missingVars -join ', ')" -Color "Error"
+        Write-ColorMessage "💡 Ajoutez ces variables dans votre fichier .env" -Color "Info"
+        return $null
+    }
     
-    # Attendre un peu pour que la suppression soit effective
-    Start-Sleep -Seconds 10
-} catch {
-    Write-Error "Erreur lors de la suppression de l'ancien container: $_"
-    exit 1
+    return $envVars
 }
 
-# Étape 6: Déployer le nouveau container sécurisé
-Write-Step "Déploiement du container sécurisé avec Azure AD..."
-try {
-    $deployResult = az container create `
-        --resource-group $ResourceGroupName `
-        --name $ContainerInstanceName `
-        --image $secureImageName `
-        --registry-login-server $acrLoginServer `
-        --registry-username $acrUsername `
-        --registry-password $acrPassword `
-        --cpu 1 `
-        --memory 1 `
-        --os-type Linux `
-        --restart-policy Always `
-        --environment-variables PYTHONUNBUFFERED=1 PYTHONPATH=/app MCP_SECURE_MODE=true AZURE_AD_TENANT_ID=$TenantId AZURE_AD_CLIENT_ID=$ClientId AZURE_AD_CLIENT_SECRET=$ClientSecret `
-        --ports 8000 `
-        --protocol TCP `
-        --dns-name-label $ContainerInstanceName `
-        --output json 2>&1
+function Get-ContainerInfo {
+    Write-Header "RÉCUPÉRATION DES INFORMATIONS DU CONTENEUR"
+    
+    try {
+        $container = az container show --resource-group $ResourceGroup --name $ContainerName --output json | ConvertFrom-Json
+        
+        Write-ColorMessage "✅ Conteneur trouvé: $($container.name)" -Color "Success"
+        Write-ColorMessage "   • État: $($container.instanceView.state)" -Color "Info"
+        Write-ColorMessage "   • Image: $($container.containers[0].image)" -Color "Info"
+        Write-ColorMessage "   • URL: http://$($container.ipAddress.fqdn):8000" -Color "Info"
+        
+        return $container
+        
+    } catch {
+        Write-ColorMessage "❌ Conteneur '$ContainerName' non trouvé dans '$ResourceGroup'" -Color "Error"
+        return $null
+    }
+}
+
+function Update-ContainerWithAuth {
+    param($Container, $EnvVars)
+    
+    Write-Header "MISE À JOUR DU CONTENEUR AVEC AZURE AD"
+    
+    # Extraire les informations nécessaires
+    $imageName = $Container.containers[0].image
+    $registryServer = $imageName.Split('/')[0]
+    $dnsLabel = $Container.ipAddress.dnsNameLabel
+    
+    Write-ColorMessage "🔧 Suppression du conteneur existant..." -Color "Info"
+    az container delete --resource-group $ResourceGroup --name $ContainerName --yes --output none
     
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Erreur lors du déploiement sécurisé: $deployResult"
-        exit 1
+        Write-ColorMessage "❌ Échec de la suppression du conteneur" -Color "Error"
+        return $false
     }
     
-    Write-Success "Container sécurisé déployé avec succès"
-} catch {
-    Write-Error "Erreur lors du déploiement sécurisé: $_"
-    exit 1
+    Write-ColorMessage "✅ Conteneur supprimé" -Color "Success"
+    
+    # Préparer les variables d'environnement avec Azure AD
+    $allEnvVars = @()
+    
+    # Variables de base
+    $allEnvVars += "PORT=8000"
+    $allEnvVars += "HOST=0.0.0.0"
+    $allEnvVars += "ENVIRONMENT=production"
+    $allEnvVars += "LOG_LEVEL=INFO"
+    
+    # Variables Azure AD
+    $allEnvVars += "AZURE_AD_TENANT_ID=$($EnvVars['AZURE_AD_TENANT_ID'])"
+    $allEnvVars += "AZURE_AD_CLIENT_ID=$($EnvVars['AZURE_AD_CLIENT_ID'])"
+    $allEnvVars += "AZURE_AD_CLIENT_SECRET=$($EnvVars['AZURE_AD_CLIENT_SECRET'])"
+    
+    # Mode sécurisé
+    $allEnvVars += "MCP_SECURE_MODE=true"
+    
+    Write-ColorMessage "🔧 Recréation du conteneur avec authentification Azure AD..." -Color "Info"
+    Write-ColorMessage "🔑 Mode sécurisé activé" -Color "Warning"
+    
+    # Obtenir les credentials du registre
+    $registryNameOnly = $registryServer.Split('.')[0]
+    $credentials = az acr credential show --name $registryNameOnly --output json | ConvertFrom-Json
+    
+    # Recréer le conteneur avec l'authentification
+    $deployCmd = @(
+        "az", "container", "create",
+        "--resource-group", $ResourceGroup,
+        "--name", $ContainerName,
+        "--image", $imageName,
+        "--cpu", "1",
+        "--memory", "1.5",
+        "--registry-login-server", $registryServer,
+        "--registry-username", $credentials.username,
+        "--registry-password", $credentials.passwords[0].value,
+        "--ports", "8000",
+        "--protocol", "TCP",
+        "--os-type", "Linux",
+        "--dns-name-label", $dnsLabel,
+        "--environment-variables"
+    )
+    
+    $deployCmd += $allEnvVars
+    $deployCmd += "--output"
+    $deployCmd += "json"
+    
+    $result = & $deployCmd[0] @($deployCmd[1..($deployCmd.Length-1)])
+    
+    if ($LASTEXITCODE -eq 0) {
+        $newContainer = $result | ConvertFrom-Json
+        Write-ColorMessage "✅ Conteneur sécurisé créé avec succès!" -Color "Success"
+        Write-ColorMessage "🌐 URL: http://$($newContainer.ipAddress.fqdn):8000" -Color "Success"
+        Write-ColorMessage "🔐 Authentification Azure AD: ACTIVÉE" -Color "Success"
+        return $true
+    }
+    else {
+        Write-ColorMessage "❌ Échec de la création du conteneur sécurisé" -Color "Error"
+        return $false
+    }
 }
 
-# Étape 7: Vérifier le déploiement sécurisé
-Write-Step "Vérification du déploiement sécurisé..."
-try {
-    Start-Sleep -Seconds 15
+function Test-SecuredDeployment {
+    Write-Header "TEST DU DÉPLOIEMENT SÉCURISÉ"
     
-    $containerInfo = az container show --resource-group $ResourceGroupName --name $ContainerInstanceName --output json | ConvertFrom-Json
+    Write-ColorMessage "⏳ Attente du démarrage du conteneur (30 secondes)..." -Color "Info"
+    Start-Sleep -Seconds 30
     
-    if (-not $containerInfo) {
-        Write-Error "Impossible de récupérer les informations du container sécurisé"
-        exit 1
-    }
+    Write-ColorMessage "🧪 Lancement des tests de sécurité..." -Color "Info"
     
-    $publicIP = $containerInfo.ipAddress.ip
-    $fqdn = $containerInfo.ipAddress.fqdn
-    $state = $containerInfo.instanceView.currentState.state
-    
-    Write-Success "Container sécurisé déployé et opérationnel!"
-    
-    Write-ColorOutput "`n🔐 Informations du déploiement sécurisé:" "Green"
-    Write-ColorOutput "========================================" "Green"
-    Write-ColorOutput "  • Nom de l'instance: $ContainerInstanceName" "White"
-    Write-ColorOutput "  • État: $state" "White"
-    Write-ColorOutput "  • Adresse IP publique: $publicIP" "White"
-    if ($fqdn) {
-        Write-ColorOutput "  • FQDN: $fqdn" "White"
-        Write-ColorOutput "  • URL sécurisée: https://$fqdn`:8000" "White"
-    }
-    Write-ColorOutput "  • Mode sécurisé: ✅ ACTIVÉ" "Green"
-    Write-ColorOutput "  • Azure AD Tenant: $TenantId" "White"
-    Write-ColorOutput "  • Azure AD Application: $ClientId" "White"
-    
-} catch {
-    Write-Error "Erreur lors de la vérification: $_"
-    exit 1
-}
-
-# Étape 8: Test de l'authentification
-Write-Step "Test de l'authentification Azure AD..."
-try {
-    Write-Info "Test de l'endpoint non authentifié..."
-    $testUrl = "http://$fqdn`:8000"
-    
-    # Test sans authentification (devrait échouer)
+    # Lancer le test de déploiement Azure
     try {
-        $response = Invoke-WebRequest -Uri $testUrl -Method GET -TimeoutSec 10
-        Write-Warning "⚠️  L'endpoint répond sans authentification - vérifiez la configuration"
-    } catch {
-        Write-Success "✅ L'endpoint requiert bien une authentification"
+        $env:AZURE_SERVER_URL = "http://mcp-weather-202506171227.francecentral.azurecontainer.io:8000"
+        python test/test_azure_deployment.py
     }
-    
-} catch {
-    Write-Warning "Impossible de tester l'authentification automatiquement"
+    catch {
+        Write-ColorMessage "⚠️ Erreur lors du test: $($_.Exception.Message)" -Color "Warning"
+    }
 }
 
-# Étape 9: Instructions pour l'utilisation
-Write-ColorOutput "`n📚 Instructions d'utilisation:" "Blue"
-Write-ColorOutput "==============================" "Blue"
-Write-ColorOutput "1. Obtenir un token Azure AD:" "White"
-Write-ColorOutput "   • Connectez-vous à votre application Azure AD 'mcp-weather-secure'" "Gray"
-Write-ColorOutput "   • Obtenez un token d'accès valide" "Gray"
-Write-ColorOutput ""
-Write-ColorOutput "2. Utiliser l'API sécurisée:" "White"
-Write-ColorOutput "   curl -H 'Authorization: Bearer YOUR_TOKEN' http://$fqdn`:8000/api/weather" "Gray"
-Write-ColorOutput ""
-Write-ColorOutput "3. Intégration avec Claude Desktop:" "White"
-Write-ColorOutput "   • Mettez à jour votre configuration MCP" "Gray"
-Write-ColorOutput "   • Ajoutez les variables d'environnement Azure AD" "Gray"
-
-Write-ColorOutput "`n🛠️  Commandes de gestion:" "Yellow"
-Write-ColorOutput "=========================" "Yellow"
-Write-ColorOutput "Voir les logs du container sécurisé:" "White"
-Write-ColorOutput "  az container logs --resource-group $ResourceGroupName --name $ContainerInstanceName --follow" "Gray"
-Write-ColorOutput ""
-Write-ColorOutput "Redémarrer le container:" "White"
-Write-ColorOutput "  az container restart --resource-group $ResourceGroupName --name $ContainerInstanceName" "Gray"
-Write-ColorOutput ""
-Write-ColorOutput "Vérifier les variables d'environnement:" "White"
-Write-ColorOutput "  az container show --resource-group $ResourceGroupName --name $ContainerInstanceName --query 'containers[0].environmentVariables'" "Gray"
-
-Write-ColorOutput "`n🔒 Sécurité activée:" "Green"
-Write-ColorOutput "===================" "Green"
-Write-ColorOutput "✅ Authentification Azure AD activée" "Green"
-Write-ColorOutput "✅ Variables d'environnement sécurisées" "Green"
-Write-ColorOutput "✅ Logs conformes RGPD" "Green"
-Write-ColorOutput "✅ Validation des tokens JWT" "Green"
-Write-ColorOutput "✅ Gestion des rôles utilisateur" "Green"
-
-Write-ColorOutput "`n🎉 Sécurisation terminée avec succès!" "Green"
-Write-ColorOutput "Votre serveur MCP Weather est maintenant sécurisé avec Azure AD!" "Green" 
+# SCRIPT PRINCIPAL
+try {
+    Write-Header "🔐 SÉCURISATION MCP WEATHER SERVER AVEC AZURE AD"
+    
+    # Vérifier la connexion Azure
+    try {
+        $account = az account show --output json | ConvertFrom-Json
+        Write-ColorMessage "✅ Connecté à Azure (Subscription: $($account.name))" -Color "Success"
+    }
+    catch {
+        Write-ColorMessage "❌ Non connecté à Azure. Exécutez 'az login' d'abord." -Color "Error"
+        exit 1
+    }
+    
+    # Étape 1: Vérifier les variables Azure AD
+    $envVars = Get-AzureADVariables
+    if (-not $envVars) {
+        exit 1
+    }
+    
+    # Étape 2: Récupérer les informations du conteneur
+    $container = Get-ContainerInfo
+    if (-not $container) {
+        exit 1
+    }
+    
+    # Étape 3: Confirmation
+    if (-not $Force) {
+        Write-ColorMessage "⚠️ ATTENTION: Cette opération va:" -Color "Warning"
+        Write-ColorMessage "   • Supprimer le conteneur existant" -Color "Warning"
+        Write-ColorMessage "   • Recréer le conteneur avec authentification Azure AD" -Color "Warning"
+        Write-ColorMessage "   • Activer le mode sécurisé" -Color "Warning"
+        
+        $confirmation = Read-Host "Continuer? (o/N)"
+        if ($confirmation -ne "o" -and $confirmation -ne "O") {
+            Write-ColorMessage "❌ Opération annulée" -Color "Info"
+            exit 0
+        }
+    }
+    
+    # Étape 4: Mise à jour avec authentification
+    $success = Update-ContainerWithAuth -Container $container -EnvVars $envVars
+    
+    if ($success) {
+        # Étape 5: Test du déploiement sécurisé
+        Test-SecuredDeployment
+        
+        Write-ColorMessage "🎉 Sécurisation terminée avec succès!" -Color "Success"
+        Write-ColorMessage "🔐 Le serveur MCP Weather est maintenant sécurisé avec Azure AD" -Color "Success"
+    }
+    else {
+        Write-ColorMessage "❌ Échec de la sécurisation" -Color "Error"
+        exit 1
+    }
+}
+catch {
+    Write-ColorMessage "❌ Erreur durant la sécurisation: $($_.Exception.Message)" -Color "Error"
+    exit 1
+} 

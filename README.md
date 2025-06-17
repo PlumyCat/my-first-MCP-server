@@ -1,682 +1,452 @@
-# 🌤️ My First MCP - Weather Server
+# 🌤️ MCP Weather Server
 
-A complete MCP (Model Context Protocol) server that provides weather data for AI assistants like Claude Desktop. This project is perfect for learning how to create custom MCP servers and integrate them with AI applications.
+Un serveur MCP (Model Context Protocol) pour les informations météorologiques avec authentification Azure AD et déploiement Azure Container Instances.
 
-## 📋 Table of Contents
+## 📋 Table des matières
 
-- [📋 Table of Contents](#-table-of-contents)
-- [🎯 What is an MCP Server?](#-what-is-an-mcp-server)
-- [✨ Features](#-features)
-- [🏗️ Project Structure](#️-project-structure)
-- [⚡ Quick Start](#-quick-start)
-- [🔧 Detailed Installation](#-detailed-installation)
-  - [1. Prerequisites](#1-prerequisites)
-  - [2. Clone the Project](#2-clone-the-project)
-  - [3. Install Dependencies](#3-install-dependencies)
-- [🚀 Usage](#-usage)
-  - [Method 1: Docker (Recommended)](#method-1-docker-recommended)
-  - [Method 2: Local Python](#method-2-local-python)
-- [🧪 Testing and Validation](#-testing-and-validation)
-- [🤖 AI Integration](#-ai-integration)
-  - [Claude Desktop](#claude-desktop)
-  - [Azure OpenAI](#azure-openai)
-  - [Claude API](#claude-api)
-- [📚 API Documentation](#-api-documentation)
-- [🔍 Troubleshooting](#-troubleshooting)
-- [🛠️ Development](#️-development)
-- [📈 Next Steps](#-next-steps)
-- [🤝 Contributing](#-contributing)
-- [📄 License](#-license)
+- [Fonctionnalités](#-fonctionnalités)
+- [Installation](#-installation)
+  - [Option 1: Installation PowerShell (Windows)](#option-1-installation-powershell-windows)
+  - [Option 2: Installation Shell (Linux/macOS)](#option-2-installation-shell-linuxmacos)
+- [Configuration](#-configuration)
+- [Utilisation](#-utilisation)
+- [Tests](#-tests)
+- [Déploiement Azure](#-déploiement-azure)
+- [Sécurisation Azure AD](#-sécurisation-azure-ad)
+- [Structure du projet](#-structure-du-projet)
 
-## 🎯 What is an MCP Server?
+## ✨ Fonctionnalités
 
-The **Model Context Protocol (MCP)** is a standardized protocol that allows AI assistants to interact with external tools. This weather server is a practical example that:
+- 🌡️ **API météo en temps réel** avec données de température, conditions et localisation
+- 🔐 **Authentification Azure AD** avec tokens JWT sécurisés
+- ☁️ **Déploiement Azure** sur Container Instances avec registre privé
+- 🤖 **Intégration IA** : Compatible Azure OpenAI et Claude API
+- 🐳 **Containerisé** : Docker avec healthcheck et logs
+- 🧪 **Tests complets** : Local, Docker, Azure avec authentification
+- 📊 **Monitoring** : Scripts de gestion et surveillance Azure
 
-- 🔌 Connects to Claude Desktop or other AI clients
-- 🌍 Provides mock weather data for any city worldwide
-- 📡 Communicates via JSON-RPC over stdin/stdout
-- 🛠️ Exposes tools that AI can use automatically
+## 🚀 Installation
 
-## ✨ Features
+### Option 1: Installation PowerShell (Windows)
 
-### 🌤️ Core Weather Tool
-- **Complete Data**: Temperature, humidity, wind, pressure, visibility, UV index
-- **Multi-unit Support**: Celsius and Fahrenheit
-- **Forecasts**: Includes 2-day weather predictions
-- **Realistic Data**: Intelligent generation of coherent weather patterns
+#### Prérequis
+- Windows 10/11 avec PowerShell 7+
+- Azure CLI installé
+- Docker Desktop installé
+- Compte Azure avec permissions Container Instances
 
-### 🔧 Technical Features
-- **MCP Protocol**: Compliant with 2024-11-05 standard
-- **JSON-RPC**: Standardized communication
-- **Docker Support**: Containerized deployment
-- **Comprehensive Testing**: Full test suite included
-- **Detailed Logging**: Complete logging system
+#### Installation complète
 
-### 🤖 AI Integrations
-- **Claude Desktop**: Automatic configuration
-- **Azure OpenAI**: Testing and integration examples
-- **Claude API**: Dedicated test scripts
-- **Standard Format**: Compatible with any MCP client
-
-## 🏗️ Project Structure
-
-```
-my_first_mcp/
-├── 📁 src/                     # Main source code
-│   ├── __init__.py
-│   ├── main.py                 # MCP entry point
-│   ├── server.py               # MCP server configuration
-│   ├── auth.py                 # Azure AD auth (optional)
-│   └── 📁 tools/
-│       ├── __init__.py
-│       └── weather.py          # Main weather tool
-├── 📁 test/                    # Test scripts
-│   ├── test_mcp_server.py      # Complete server test
-│   ├── test_claude_api.py      # Claude API test
-│   ├── test_azure_openai_api.py # Azure OpenAI test
-│   ├── compare_ai_apis.py      # Claude vs Azure comparison
-│   ├── run_local.py            # Local execution
-│   └── test_with_ai.py         # AI configuration
-├── 📄 requirements.txt         # Python dependencies
-├── 🐳 Dockerfile              # Main Docker image
-├── 🐳 Dockerfile.local        # Alternative Docker image
-├── 🐳 docker-compose.yml      # Docker orchestration
-├── 📄 .gitignore              # Ignored files
-├── 📄 env_example.txt         # Environment variables
-├── 📄 mcp_config_example.json # MCP configuration example
-└── 📖 README.md               # This file
+1. **Cloner le repository**
+```powershell
+git clone https://github.com/votre-username/mcp-weather-server.git
+cd mcp-weather-server
 ```
 
-## ⚡ Quick Start
+2. **Configuration des variables d'environnement**
+```powershell
+# Copier le fichier d'exemple
+Copy-Item "env_example.txt" ".env"
 
-```bash
-# 1. Clone the project
-git clone <your-repo> my_first_mcp
-cd my_first_mcp
-
-# 2. Start with Docker (recommended)
-docker-compose up --build
-
-# 3. Test the server
-python test/test_mcp_server.py
+# Éditer le fichier .env avec vos clés
+notepad .env
 ```
 
-## 🔧 Detailed Installation
+3. **Déploiement Azure**
+```powershell
+# Se connecter à Azure
+az login
 
-### 1. Prerequisites
+# Déployer le serveur (script principal)
+.\deploy-azure.ps1
 
-#### 🐍 Python 3.11+
-```bash
-# Check Python version
-python --version
-# Should display Python 3.11.x or newer
+# Sécuriser avec Azure AD (après déploiement)
+.\azure-secure.ps1
 ```
 
-**Install Python:**
-- **Windows**: [python.org/downloads](https://www.python.org/downloads/)
-- **macOS**: `brew install python` or [python.org](https://www.python.org/downloads/)
-- **Linux**: `sudo apt update && sudo apt install python3.11 python3.11-pip`
+4. **Tests et validation**
+```powershell
+# Tester le déploiement complet
+python test/test_azure_deployment.py
 
-#### 🐳 Docker (optional but recommended)
-```bash
-# Check Docker
-docker --version
-docker-compose --version
+# Gérer le serveur Azure
+.\azure-manage.ps1 status
+.\azure-manage.ps1 logs
 ```
 
-**Install Docker:**
-- **Windows/macOS**: [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-- **Linux**: [Official Instructions](https://docs.docker.com/engine/install/)
+### Option 2: Installation Shell (Linux/macOS)
 
-#### 📦 Git
-```bash
-# Check Git
-git --version
-```
-
-**Install Git:**
-- **Windows**: [git-scm.com](https://git-scm.com/downloads)
-- **macOS**: `brew install git` or Xcode Command Line Tools
-- **Linux**: `sudo apt install git`
-
-### 2. Clone the Project
-
-```bash
-# Clone from your repository
-git clone <YOUR_REPO_URL> my_first_mcp
-
-# Or create a new folder
-mkdir my_first_mcp
-cd my_first_mcp
-
-# Copy all project files to this folder
-```
-
-### 3. Install Dependencies
-
-#### Option A: Virtual Environment (recommended)
-```bash
-# Create virtual environment
-python -m venv .venv
-
-# Activate virtual environment
-# Windows:
-.venv\Scripts\activate
-# macOS/Linux:
-source .venv/bin/activate
-
-# Install dependencies
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
-#### Option B: Global Installation
-```bash
-# Direct installation (not recommended for production)
-pip install -r requirements.txt
-```
-
-#### 📋 Key Dependencies
-- **mcp**: Official MCP library
-- **pydantic**: Data validation
-- **asyncio-mqtt**: Asynchronous communication
-- **anthropic**: Claude API (optional)
-- **openai**: Azure OpenAI API (optional)
-- **python-dotenv**: Environment variables
-
-## 🚀 Usage
-
-### Method 1: Docker (Recommended)
-
-#### Simple Start
-```bash
-# Build and start
-docker-compose up --build
-
-# Run in background
-docker-compose up -d --build
-
-# View logs
-docker logs mcp-weather-server -f
-
-# Stop
-docker-compose down
-```
-
-#### Network Issues?
-```bash
-# Use alternative version
-docker-compose --profile alternative up --build
-```
-
-### Method 2: Local Python
-
-#### Start the Server
-```bash
-# Activate virtual environment
-source .venv/bin/activate  # or .venv\Scripts\activate on Windows
-
-# Start MCP server
-python -m src.main
-```
-
-#### Local Startup Script
-```bash
-# Use local test script
-python test/run_local.py
-```
-
-### Method 3: Azure Cloud Deployment
-
-#### Déploiement automatique sur Azure Container Instances
-
-Le projet inclut des scripts PowerShell pour déployer automatiquement votre serveur MCP Weather sur Azure.
-
-##### Prérequis
+#### Prérequis
+- Linux/macOS avec Bash
 - Azure CLI installé
 - Docker installé
-- Compte Azure actif
+- Compte Azure avec permissions Container Instances
 
-##### Configuration rapide
-```powershell
-# 1. Vérifier les prérequis
-.\azure-setup.ps1 -CheckOnly
+#### Installation complète
 
-# 2. Installer les prérequis automatiquement (Windows)
-.\azure-setup.ps1 -InstallPrerequisites
-
-# 3. Se connecter à Azure
-az login
-```
-
-##### Déploiement
-```powershell
-# Déploiement simple (nom de registre requis - doit être unique)
-.\deploy-azure.ps1 -ContainerRegistryName "mcpweather1234"
-
-# Déploiement avec paramètres personnalisés
-.\deploy-azure.ps1 -ContainerRegistryName "monregistre" -ResourceGroupName "mon-rg" -Location "France Central"
-```
-
-##### Gestion post-déploiement
-```powershell
-# Voir l'état du conteneur
-.\azure-manage.ps1 -Action status
-
-# Voir les logs en temps réel
-.\azure-manage.ps1 -Action logs -Follow
-
-# Redémarrer le conteneur
-.\azure-manage.ps1 -Action restart
-
-# Arrêter/démarrer le conteneur
-.\azure-manage.ps1 -Action stop
-.\azure-manage.ps1 -Action start
-
-# Supprimer complètement le déploiement
-.\azure-manage.ps1 -Action delete
-```
-
-##### Avantages du déploiement Azure
-- ✅ **Haute disponibilité**: Redémarrage automatique
-- ✅ **Scalabilité**: Ajustement des ressources
-- ✅ **Sécurité**: Registre de conteneurs privé
-- ✅ **Monitoring**: Logs et métriques intégrés
-- ✅ **Coût optimisé**: Paiement à l'usage
-
-## 🧪 Testing and Validation
-
-### Complete Server Test
+1. **Cloner le repository**
 ```bash
-# Perfect final test - validated ✅
-python test/test_mcp_server.py
+git clone https://github.com/votre-username/mcp-weather-server.git
+cd mcp-weather-server
 ```
 
-**This test verifies:**
-- ✅ MCP server startup
-- ✅ Protocol initialization
-- ✅ Available tools listing
-- ✅ Tool calls with different cities
-- ✅ JSON response format
-- ✅ Performance statistics
-
-### Specialized Tests
-
-#### Simple Local Test
+2. **Configuration des variables d'environnement**
 ```bash
-# Test without MCP, just the weather tool
-python test/run_local.py
-```
-
-#### AI Configuration
-```bash
-# Automatically configures for Claude Desktop
-python test/test_with_ai.py
-```
-
-## 🤖 AI Integration
-
-### Claude Desktop
-
-#### 1. Automatic Configuration
-```bash
-# Automatically configures Claude Desktop
-python test/test_with_ai.py
-```
-
-#### 2. Manual Configuration
-Edit `%APPDATA%\Claude\claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "weather-server": {
-      "command": "python",
-      "args": ["-m", "src.main"],
-      "cwd": "C:\\path\\to\\my_first_mcp",
-      "env": {
-        "PYTHONPATH": "C:\\path\\to\\my_first_mcp",
-        "PYTHONUNBUFFERED": "1"
-      }
-    }
-  }
-}
-```
-
-#### 3. Usage in Claude
-```
-🗣️ "Can you give me the weather for Paris?"
-🗣️ "Compare weather between London and Madrid"
-🗣️ "Should I bring an umbrella in New York?"
-```
-
-### Azure OpenAI
-
-#### 1. Environment Variables Setup
-```bash
-# Copy example file
+# Copier le fichier d'exemple
 cp env_example.txt .env
 
-# Edit .env with your real keys
-AZURE_OPENAI_API_KEY=your_key_here
-AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/
-AZURE_OPENAI_DEPLOYMENT_NAME=your_deployment_name
+# Éditer le fichier .env avec vos clés
+nano .env
 ```
 
-#### 2. Test with Azure OpenAI
+3. **Déploiement Azure**
 ```bash
-# Complete test with Azure OpenAI
+# Se connecter à Azure
+az login
+
+# Rendre les scripts exécutables
+chmod +x deploiement/*.sh
+
+# Déployer le serveur (script principal)
+./deploiement/deploy-azure.sh
+
+# Sécuriser avec Azure AD (optionnel - depuis Windows)
+# Ou utiliser les scripts de gestion Linux
+./deploiement/azure-manage.sh status
+```
+
+4. **Tests et validation**
+```bash
+# Tester le déploiement
+python test/test_azure_deployment.py
+
+# Gérer le serveur Azure
+./deploiement/azure-manage.sh logs
+./deploiement/azure-manage.sh restart
+```
+
+## ⚙️ Configuration
+
+### Variables d'environnement (.env)
+
+```env
+# Configuration du serveur
+PORT=8000
+HOST=0.0.0.0
+ENVIRONMENT=production
+LOG_LEVEL=INFO
+
+# Azure AD (requis pour la sécurisation)
+AZURE_AD_TENANT_ID=your_tenant_id_here
+AZURE_AD_CLIENT_ID=your_client_id_here
+AZURE_AD_CLIENT_SECRET=your_client_secret_here
+
+# URL du serveur Azure (mise à jour automatique)
+AZURE_SERVER_URL=http://your-container.azurecontainer.io:8000
+
+# APIs IA (optionnel pour tests)
+AZURE_OPENAI_API_KEY=your_azure_openai_key_here
+AZURE_OPENAI_ENDPOINT=your_azure_openai_endpoint_here
+AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4
+ANTHROPIC_API_KEY=your_claude_api_key_here
+
+# APIs météo (optionnel)
+OPENWEATHERMAP_API_KEY=your_openweathermap_key_here
+WEATHERAPI_KEY=your_weatherapi_key_here
+```
+
+### Configuration Azure AD
+
+1. **Créer une application Azure AD**
+```bash
+# Via Azure CLI
+az ad app create --display-name "mcp-weather-server" --sign-in-audience "AzureADMyOrg"
+```
+
+2. **Configurer les permissions**
+- Ajouter les permissions API nécessaires
+- Générer un secret client
+- Noter le Tenant ID, Client ID et Client Secret
+
+## 🎯 Utilisation
+
+### Déploiement rapide
+
+**Windows (PowerShell) :**
+```powershell
+# Déploiement + sécurisation en une fois
+.\deploy-azure.ps1 && .\azure-secure.ps1
+```
+
+**Linux/macOS (Shell) :**
+```bash
+# Déploiement complet
+./deploiement/deploy-azure.sh
+```
+
+### Gestion du serveur
+
+**Windows :**
+```powershell
+# État du serveur
+.\azure-manage.ps1 status
+
+# Voir les logs
+.\azure-manage.ps1 logs
+
+# Redémarrer
+.\azure-manage.ps1 restart
+
+# URL du serveur
+.\azure-manage.ps1 url
+```
+
+**Linux/macOS :**
+```bash
+# État du serveur
+./deploiement/azure-manage.sh status
+
+# Voir les logs
+./deploiement/azure-manage.sh logs
+
+# Redémarrer
+./deploiement/azure-manage.sh restart
+```
+
+## 🧪 Tests
+
+### Tests disponibles
+
+```powershell
+# Test complet du déploiement Azure
+python test/test_azure_deployment.py
+
+# Test des APIs IA localement
 python test/test_azure_openai_api.py
-```
-
-**Azure Prerequisites:**
-- 🔑 [Azure Account](https://azure.microsoft.com/en-us/free/)
-- 🧠 [Azure OpenAI Service](https://azure.microsoft.com/en-us/products/ai-services/openai-service)
-- 🚀 GPT-4 or GPT-3.5-turbo deployment
-
-### Claude API
-
-#### 1. Configuration
-```bash
-# Add to .env
-ANTHROPIC_API_KEY=sk-ant-api03-...
-```
-
-#### 2. Test with Claude API
-```bash
-# Complete test with Claude API
 python test/test_claude_api.py
-```
 
-**Get Claude Key:**
-- 🔗 [console.anthropic.com](https://console.anthropic.com/)
-- 💳 Free credits available for new accounts
+# Test du container Docker local
+python test/test_docker_local.py
 
-### AI Comparison
-
-```bash
-# Compare Claude vs Azure OpenAI side by side
+# Comparaison des APIs IA
 python test/compare_ai_apis.py
 ```
 
-## 📚 API Documentation
+### Environnements de test
 
-### `get_weather` Tool
-
-#### Parameters
-```json
-{
-  "city": "string (required)",
-  "unit": "celsius|fahrenheit (optional, default: celsius)"
-}
+```powershell
+# Tester différents environnements
+python test/test_environments.py --env local
+python test/test_environments.py --env docker
+python test/test_environments.py --env azure
 ```
 
-#### Example Call
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "tools/call",
-  "params": {
-    "name": "get_weather",
-    "arguments": {
-      "city": "Paris",
-      "unit": "celsius"
-    }
-  }
-}
+## ☁️ Déploiement Azure
+
+### Architecture
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   Azure CLI     │───▶│  Container       │───▶│  Azure Container│
+│   (Local)       │    │  Registry (ACR)  │    │  Instances (ACI)│
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                │
+                                ▼
+                       ┌──────────────────┐
+                       │   Docker Image   │
+                       │  MCP Weather     │
+                       │  + FastAPI       │
+                       │  + Azure AD      │
+                       └──────────────────┘
 ```
 
-#### Example Response
-```json
-{
-  "success": true,
-  "data": {
-    "city": "Paris",
-    "temperature": 22,
-    "unit": "°C",
-    "condition": "sunny",
-    "humidity": 65,
-    "wind_speed": 12,
-    "wind_unit": "km/h",
-    "pressure": 1013,
-    "visibility": 10,
-    "uv_index": 6,
-    "timestamp": "2025-06-16T14:30:00",
-    "forecast": [
-      {
-        "day": "Tomorrow",
-        "high": 25,
-        "low": 15,
-        "condition": "partly cloudy"
-      },
-      {
-        "day": "Day after tomorrow",
-        "high": 23,
-        "low": 12,
-        "condition": "rainy"
-      }
-    ]
+### Processus de déploiement
+
+1. **Création du registre Azure Container Registry (ACR)**
+2. **Construction et push de l'image Docker**
+3. **Déploiement sur Azure Container Instances (ACI)**
+4. **Configuration réseau et DNS**
+5. **Sécurisation avec Azure AD**
+
+### Ressources créées
+
+- **Groupe de ressources** : `mcp-weather-rg`
+- **Container Registry** : `mcpweatherXXXXXX.azurecr.io`
+- **Container Instance** : `mcp-weather-server`
+- **IP publique** avec FQDN : `mcp-weather-XXXXXX.francecentral.azurecontainer.io`
+
+## 🔐 Sécurisation Azure AD
+
+### Workflow de sécurisation
+
+1. **Serveur non sécurisé** (après déploiement initial)
+   - Accessible sans authentification
+   - Tests de base fonctionnels
+
+2. **Activation Azure AD** (via `azure-secure.ps1`)
+   - Suppression du container existant
+   - Recréation avec variables Azure AD
+   - Mode sécurisé activé
+
+3. **Serveur sécurisé** (résultat final)
+   - Authentification Bearer token requise
+   - Validation JWT Azure AD
+   - Tests complets avec authentification
+
+### Authentification
+
+```javascript
+// Exemple d'appel authentifié
+const response = await fetch('http://your-server:8000/mcp', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer ' + azureAdToken,
+    'Content-Type': 'application/json'
   },
-  "message": "Weather data retrieved for Paris"
-}
+  body: JSON.stringify({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "tools/call",
+    params: {
+      name: "get_weather",
+      arguments: { city: "Paris" }
+    }
+  })
+});
 ```
 
-### Supported MCP Messages
+## 📁 Structure du projet
 
-- `initialize`: Protocol initialization
-- `tools/list`: List available tools
-- `tools/call`: Call a tool
-- `notifications/initialized`: Initialization notification
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-#### "Module not found" Error
-```bash
-# Check PYTHONPATH
-echo $PYTHONPATH  # Linux/macOS
-echo %PYTHONPATH%  # Windows
-
-# Reinstall dependencies
-pip install -r requirements.txt --force-reinstall
+```
+mcp-weather-server/
+├── 📄 README.md                    # Documentation principale
+├── 📄 requirements.txt             # Dépendances Python
+├── 📄 Dockerfile                   # Image Docker principale
+├── 📄 docker-compose.yml           # Orchestration locale
+├── 📄 .env                         # Variables d'environnement
+├── 📄 env_example.txt              # Exemple de configuration
+├── 📄 mcp_config_example.json      # Configuration MCP exemple
+├── 📄 .gitignore                   # Fichiers ignorés par Git
+│
+├── 📂 src/                         # Code source
+│   ├── 📄 __init__.py
+│   ├── 📄 main.py                  # Point d'entrée MCP stdio
+│   ├── 📄 server.py                # Serveur MCP principal
+│   ├── 📄 http_server.py           # Serveur HTTP/REST
+│   ├── 📄 auth.py                  # Authentification Azure AD
+│   └── 📂 tools/
+│       ├── 📄 __init__.py
+│       └── 📄 weather.py           # Outil météo MCP
+│
+├── 📂 test/                        # Tests et validation
+│   ├── 📄 README_TESTS.md          # Documentation des tests
+│   ├── 📄 test_azure_deployment.py # Test déploiement Azure
+│   ├── 📄 test_azure_openai_api.py # Test Azure OpenAI
+│   ├── 📄 test_claude_api.py       # Test Claude API
+│   ├── 📄 test_docker_local.py     # Test Docker local
+│   ├── 📄 test_mcp_server.py       # Test serveur MCP
+│   ├── 📄 test_environments.py     # Test multi-environnements
+│   ├── 📄 compare_ai_apis.py       # Comparaison APIs IA
+│   ├── 📄 test_with_ai.py          # Tests avec IA
+│   └── 📄 run_local.py             # Exécution locale
+│
+├── 📂 deploiement/                 # Scripts de déploiement
+│   ├── 📄 README_LINUX.md          # Documentation Linux
+│   ├── 📄 deploy-azure.sh          # Déploiement Azure (Linux)
+│   ├── 📄 azure-setup.sh           # Configuration Azure (Linux)
+│   ├── 📄 azure-manage.sh          # Gestion Azure (Linux)
+│   ├── 📄 azure-cleanup.sh         # Nettoyage Azure (Linux)
+│   ├── 📄 azure-update-http.sh     # Mise à jour HTTP (Linux)
+│   ├── 📄 test-linux-scripts.sh    # Tests scripts Linux
+│   ├── 📄 deploy-azure.ps1         # Déploiement Azure (Windows)
+│   ├── 📄 azure-setup.ps1          # Configuration Azure (Windows)
+│   ├── 📄 azure-manage.ps1         # Gestion Azure (Windows)
+│   ├── 📄 azure-cleanup.ps1        # Nettoyage Azure (Windows)
+│   └── 📄 azure-update-http.ps1    # Mise à jour HTTP (Windows)
+│
+├── 📄 deploy-azure.ps1             # Script de déploiement principal
+├── 📄 azure-manage.ps1             # Script de gestion principal
+├── 📄 azure-secure.ps1             # Script de sécurisation Azure AD
+├── 📄 azure-secure-keyvault.ps1    # Sécurisation avec Key Vault
+└── 📄 azure-get-token.ps1          # Génération de tokens Azure AD
 ```
 
-#### Docker Won't Start
-```bash
-# Check Docker
-docker --version
-docker-compose --version
+## 🔧 Scripts principaux
 
-# Clean Docker
-docker system prune -f
-docker-compose down --volumes
+### Windows (PowerShell)
 
-# Rebuild
-docker-compose up --build --force-recreate
-```
+| Script | Description | Usage |
+|--------|-------------|-------|
+| `deploy-azure.ps1` | Déploiement complet sur Azure | `.\deploy-azure.ps1` |
+| `azure-secure.ps1` | Sécurisation avec Azure AD | `.\azure-secure.ps1` |
+| `azure-manage.ps1` | Gestion du serveur Azure | `.\azure-manage.ps1 status` |
+| `azure-get-token.ps1` | Test des tokens Azure AD | `.\azure-get-token.ps1` |
 
-#### Claude Desktop Doesn't See Server
-1. ✅ Check path in `claude_desktop_config.json`
-2. ✅ Restart Claude Desktop completely
-3. ✅ Test server with `python test/test_mcp_server.py`
-4. ✅ Check Claude Desktop logs
+### Linux/macOS (Shell)
 
-#### Missing Environment Variables
-```bash
-# Copy example file
-cp env_example.txt .env
+| Script | Description | Usage |
+|--------|-------------|-------|
+| `deploy-azure.sh` | Déploiement complet sur Azure | `./deploiement/deploy-azure.sh` |
+| `azure-manage.sh` | Gestion du serveur Azure | `./deploiement/azure-manage.sh status` |
+| `azure-setup.sh` | Configuration initiale Azure | `./deploiement/azure-setup.sh` |
+| `azure-cleanup.sh` | Nettoyage des ressources | `./deploiement/azure-cleanup.sh` |
 
-# Edit with your real values
-nano .env  # or notepad .env on Windows
-```
+## 🎯 Workflow recommandé
 
-### Logs and Debugging
+### Première installation
 
-#### MCP Server Logs
-```bash
-# Local mode
-python -m src.main
+1. **Déploiement initial** (choisir votre plateforme)
+   - Windows : `.\deploy-azure.ps1`
+   - Linux : `./deploiement/deploy-azure.sh`
 
-# Docker mode
-docker logs mcp-weather-server -f
-```
+2. **Sécurisation** (recommandé)
+   - Windows : `.\azure-secure.ps1`
 
-#### Claude Desktop Logs
-- **Windows**: `%APPDATA%\Claude\logs\`
-- **macOS**: `~/Library/Logs/Claude/`
+3. **Validation**
+   - `python test/test_azure_deployment.py`
 
-#### Diagnostic Tests
-```bash
-# Complete test
-python test/test_mcp_server.py
+### Utilisation quotidienne
 
-# Local only test
-python test/run_local.py
+- **Vérifier l'état** : `azure-manage status`
+- **Voir les logs** : `azure-manage logs`
+- **Redémarrer** : `azure-manage restart`
+- **Tester** : `python test/test_azure_deployment.py`
 
-# Configuration test
-python test/test_with_ai.py
-```
+## 🔍 Dépannage
 
-## 🛠️ Development
+### Problèmes courants
 
-### Development Setup
+1. **Serveur inaccessible**
+   - Vérifier l'état : `azure-manage status`
+   - Consulter les logs : `azure-manage logs`
 
-```bash
-# Development mode with auto-reload
-docker-compose up --build
+2. **Authentification échouée**
+   - Vérifier les variables Azure AD dans `.env`
+   - Tester le token : `azure-get-token.ps1`
 
-# Volumes are configured for hot reload
-# Modify src/ and restart container
-```
+3. **Container qui redémarre**
+   - Problème de configuration réseau (HOST=0.0.0.0)
+   - Dépendances manquantes (FastAPI, uvicorn)
 
-### Adding a New Tool
+### Support
 
-1. **Create the tool** in `src/tools/`
-```python
-# src/tools/my_tool.py
-class MyTool:
-    def __init__(self):
-        self.name = "my_tool"
-        self.description = "Description of my tool"
-        self.parameters = {
-            "type": "object",
-            "properties": {
-                "param1": {"type": "string", "description": "First parameter"}
-            },
-            "required": ["param1"]
-        }
-    
-    async def execute(self, param1: str):
-        return {"success": True, "result": f"Result for {param1}"}
-```
+- 📖 Documentation complète : `README_TESTS.md`
+- 🐧 Guide Linux : `deploiement/README_LINUX.md`
+- 🧪 Tests : Dossier `test/`
 
-2. **Register the tool** in `src/server.py`
-```python
-from .tools.my_tool import MyTool
+## 📝 Licence
 
-# In MCPWeatherServer class
-self.my_tool = MyTool()
-# Add handler in _setup_tools()
-```
+MIT License - Voir le fichier LICENSE pour plus de détails.
 
-3. **Test the tool**
-```bash
-python test/test_mcp_server.py
-```
+## 🤝 Contribution
 
-### Custom Tests
-
-```python
-# Create a custom test
-import asyncio
-from src.tools.weather import WeatherTool
-
-async def test_custom():
-    tool = WeatherTool()
-    result = await tool.execute("Tokyo", "fahrenheit")
-    print(f"Result: {result}")
-
-asyncio.run(test_custom())
-```
-
-## 📈 Next Steps
-
-### 🛠️ Additional Tools
-- [ ] **News**: News API integration
-- [ ] **Calculator**: Advanced mathematical tools
-- [ ] **Translation**: Translation API
-- [ ] **Database**: Persistent storage
-
-### ☁️ Cloud Deployment
-- [x] **Azure Container Instances**: Azure deployment (scripts inclus)
-- [ ] **Azure Functions**: Serverless MCP
-
-### 🔒 Security and Production
-- [ ] **Authentication**: Azure AD, OAuth2
-- [ ] **Rate Limiting**: Request throttling
-- [ ] **Monitoring**: Metrics and alerts
-- [ ] **HTTPS**: Secure communications
-
-### 📚 Learning Resources
-- 📖 [Official MCP Documentation](https://modelcontextprotocol.io/)
-- 🧠 [Claude API Documentation](https://docs.anthropic.com/)
-- 🤖 [Azure OpenAI Documentation](https://docs.microsoft.com/en-us/azure/ai-services/openai/)
-- 🐳 [Docker Documentation](https://docs.docker.com/)
-
-## 🤝 Contributing
-
-### How to Contribute
-
-1. **Fork** the project
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -am 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Create** a Pull Request
-
-### Contributing Guidelines
-
-- ✅ Tests required for all new features
-- ✅ Updated documentation
-- ✅ Python code follows PEP 8
-- ✅ Descriptive commit messages
-- ✅ Python 3.11+ compatibility
-
-### Report a Bug
-
-1. 🔍 Check if the bug already exists
-2. 🐛 Use GitHub issue template
-3. 📝 Include logs and reproduction steps
-4. 🖥️ Specify environment (OS, Python, Docker)
-
-## 📄 License
-
-This project is licensed under the MIT License. See the `LICENSE` file for details.
+Les contributions sont les bienvenues ! Merci de :
+1. Fork le projet
+2. Créer une branche feature
+3. Commit vos changements
+4. Push vers la branche
+5. Ouvrir une Pull Request
 
 ---
 
-## 🎉 Congratulations!
-
-You now have a complete and functional MCP Weather server!
-
-🚀 **Production Ready** with Docker  
-🧠 **Claude Desktop Compatible** for immediate use  
-🤖 **Integrable** with Azure OpenAI and Claude API  
-🔧 **Extensible** to add your own tools  
-
-**Next Step**: Integrate a real weather API and deploy your server to the cloud!
-
----
-
-## 🌟 Show Your Support
-
-If this project helped you learn MCP, please give it a star ⭐️
-
-- 🐛 **Found a bug?** [Open an issue](../../issues)
-- 💡 **Have an idea?** [Start a discussion](../../discussions)
-- 🤝 **Want to contribute?** [Read our guidelines](#-contributing)
-
----
-
-*Created with ❤️ to learn the MCP protocol*
+**🌤️ MCP Weather Server - Météo intelligente avec Azure AD et déploiement cloud !**
